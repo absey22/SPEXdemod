@@ -1,0 +1,32 @@
+0 ! Prescan mode in use
+0 ! DarkCurrent correction not in use
+1 ! Do save measurement selected
+0 ! Save data as textfile selected
+0 ! Save FULL pixelrange in use
+1 ! Save Timestamps in use ((10 µs resolution) ) 
+30.543 ! Detector 0 temperature °C 
+30.015 ! Detector 1 temperature °C 
+1 ! RainSensor indicates: No Rain
+24.71  ! Case temp °C 
+46.11  ! Case Humidity rH 
+24  ! Scriptline 
+139.37  ! At horizontal/azimuthal pos (Pan)
+39  ! At vertical/elevational pos (Tilt)
+182.44 ! Calculated integration time, details follow below:
+24 ! <- at scriptline 
+30.875  ! Detector 0 temp °C : 
+30.322  ! Detector 1 temp °C : 
+1 ! RainSensor indicates: No Rain
+25  ! Scriptline 
+139.37  ! At horizontal/azimuthal pos (Pan)
+34  ! At vertical/elevational pos (Tilt)
+167.58 ! Calculated integration time, details follow below:
+25 ! <- at scriptline 
+30.875  ! Detector 0 temp °C : 
+30.322  ! Detector 1 temp °C : 
+1 ! RainSensor indicates: No Rain
+30.875 ! Detector 0 temp °C : 
+30.322 ! Detector 1 temp °C : 
+1 ! RainSensor indicates: No Rain
+24.72 ! Case temp °C : 
+46.155 ! Case Humidity rH : 
