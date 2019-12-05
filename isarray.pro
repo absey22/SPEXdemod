@@ -38,7 +38,9 @@
 	  return, -1
 	endif
  
-	if n_elements(a) eq 0 then return, 0
-	s = size(a)
+        ;if n_elements(a) eq 0 then return, 0
+        ;print,'nonzero things'
+        ;s = size(a)
+         
 	return, s[0] ne 0
 	end
