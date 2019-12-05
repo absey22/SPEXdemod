@@ -1,0 +1,28 @@
+# >>>>> demod.pro <<<<<
+
+#FUNCTION DEMOD_REFRINDX, lambda, params1, params2, temp
+
+
+get  number of elements in lambda
+convert from nm to microns? (factor of 1000)
+
+create complex, double-precision, floating-point array of lambda columns by 2 rows
+create double-precision, floating-point array of lambda cols and 2 rows
+
+populate each row of Nabs with rows in params1
+
+
+#PRO DEMOD, input, lambdainp, spectra, fitout $
+#         , LRANGE = lrange, NODELTAFIT = nodeltafit, CONF = conf, AOLP = aolp, NLAMB = nlamb, WINSTEP = winstep $
+#         , DOPLOT = doplot, DOSAVE = dosave, DELTALIT = deltalit, QUIET = quiet
+
+define defaults in keywords
+
+if the default lower wvl is lower than shortest wvl in input lambda array, then
+   increment the lowest wavelength by 10nm
+
+if the default high wvl is greater than the longest wvl in the input array, then
+   decrement the highest wavelength by 20nm
+
+set min wvl to the min of ~intersection of input wvl and lower range-10
+set max wvl to min of ~intersection of input wvl and upper range+20
