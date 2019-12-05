@@ -3,7 +3,7 @@
 #FUNCTION DEMOD_REFRINDX, lambda, params1, params2, temp
 
 
-get number of elements in lambda
+get  number of elements in lambda
 convert from nm to microns? (factor of 1000)
 
 create complex, double-precision, floating-point array of lambda columns by 2 rows
