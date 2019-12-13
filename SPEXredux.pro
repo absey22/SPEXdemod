@@ -1,6 +1,50 @@
 PRO SPEXredux, dir
 
+print,'specified dir'
+  
 if strmid(dir,0,/reverse_offset) ne path_sep() then dir += path_sep()
+
+
+print, dir
+
+
+
+;;================
+;;================ FUNCTIONS
+;;================
+FUNCTION poly2d, x, y, coefs
+
+z = make_array(n_elements(x), n_elements(y), /double)
+
+for xx=0, n_elements(x)-1 do begin
+   for yy=0, n_elements(y)-1 do begin
+      for i=0, (size(coefs))[2]-1 do begin
+         for j=0, (size(coefs))[1]-1 do begin
+            z[xx,yy] += coefs[j,i] *x[xx]^i *y[yy]^j
+         endfor
+      endfor
+   endfor
+endfor
+
+return, z
+END
+
+
+FUNCTION ASTM, lambdamin, lambdamax
+
+if (size(findfile('solarspec.sav')))[0] ne 0 then $
+   restore, 'solarspec.sav' else print, '*** error: solarspec.sav file not found ***'
+
+minel = (sort(abs(solar[*,0]-lambdamin)))[0]
+maxel = (sort(abs(solar[*,0]-lambdamax)))[0]
+
+irrad = mean(solar[minel:maxel,1])
+
+return, irrad
+END
+
+
+
 
 
 ;;================ IMPORT META DATA
@@ -291,36 +335,3 @@ END
 
 
 
-;;================
-;;================ FUNCTIONS
-;;================
-FUNCTION poly2d, x, y, coefs
-
-z = make_array(n_elements(x), n_elements(y), /double)
-
-for xx=0, n_elements(x)-1 do begin
-   for yy=0, n_elements(y)-1 do begin
-      for i=0, (size(coefs))[2]-1 do begin
-         for j=0, (size(coefs))[1]-1 do begin
-            z[xx,yy] += coefs[j,i] *x[xx]^i *y[yy]^j
-         endfor
-      endfor
-   endfor
-endfor
-
-return, z
-END
-
-
-FUNCTION ASTM, lambdamin, lambdamax
-
-if (size(findfile('solarspec.sav')))[0] ne 0 then $
-   restore, 'solarspec.sav' else print, '*** error: solarspec.sav file not found ***'
-
-minel = (sort(abs(solar[*,0]-lambdamin)))[0]
-maxel = (sort(abs(solar[*,0]-lambdamax)))[0]
-
-irrad = mean(solar[minel:maxel,1])
-
-return, irrad
-END
