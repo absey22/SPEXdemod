@@ -6,13 +6,47 @@ import glob
 
 
 if len(sys.argv) == 1:
-    dir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013_105035'
+    dir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013 105035'
 else:
     dir=sys.argv[1]
 
     
 if str(dir)[-1]!='/':
     dir+='/'
+
+
+
+#take a list of filenames and sorts them according to the info stored in the file names
+#from AvaSpec
+def sortfilenames(filenames):
+    exps=np.zeros((2*len(texp)))
+    channels=exps.copy()
+    for i,fname in enumerate(filenames): #extract channel and exp index info from file list
+        channels[i]=fname[fname.find('U2_')-1] #key for sorting by channel
+        exps[i]=fname.split('_')[-8] # key for sorting by exposure index number
+
+    expkey=np.argsort(exps)
+
+    filenames=filenames[expkey] #sort the file list in ascending exposure    
+    channels=channels[expkey] #and reorder channelkey accordindly
+
+    channelkey=np.zeros_like(expkey)
+    for i in range(0,len(channels),2): #sort channels in each successive exposure
+        channelkey[i:i+2]=i+np.argsort(channels[i:i+2])
+
+    filenames=filenames[channelkey] #sort the (sorted) file list in ascending channels
+    
+    return filenames
+
+#takes a list of filenames and creates a numpy array of rows with the data in each file
+def importfilenames(filenames):
+    spectraldata=[]
+    for fname in filenames:
+        spectraldata.append(np.genfromtxt(fname,delimiter=',')[:-1])#cut of nan at the end
+
+    return np.asarray(spectraldata)
+
+
 
     
 #================ IMPORT META DATA
@@ -34,12 +68,12 @@ for i,line in enumerate(meta):
     if line[1].find('At horizontal/azimuthal pos (Pan)')!=-1:
         pantilt[i,0]=float(line[0])
     if line[1].find('At vertical/elevational pos (Tilt)')!=-1:
-        pantilt[i-1,1]=float(line[0])
+        pantilt[i,1]=float(line[0])
 
     if line[1].find('Detector 0 temp ')!=-1:
        temperature[i,0]=float(line[0])
     if line[1].find('Detector 1 temp ')!=-1:
-        temperature[i-1,1]=float(line[0])
+        temperature[i,1]=float(line[0])
        
  #reformat 
 texp=texp[~np.isnan(texp)]
@@ -61,41 +95,42 @@ print(texp)
 
 #================ IMPORT SPECTRA
 
-specfiles=glob.glob(dir+'Spectrometer_110516*U2_*pix.txt')
+specfiles=np.asarray(glob.glob(dir+'Spectrometer_110516*U2_*pix.txt'))
 
-spec=[]
-for i in range(len(specfiles)):
-    spec.append(np.genfromtxt(specfiles[i],delimiter=',')[:-1])
+#sort in ascending exposure, and then ascending channel
+#(so that the order matches with the exp times and temps in the Meta data)
+specfiles=sortfilenames(specfiles)
 
-spec=np.asarray(spec)
+#import the spectral data into an multi-dim array
+spec=importfilenames(specfiles)
 
-for s in spec:
-    plt.plot(s)
-plt.show()
 
 
 #================ IMPORT DATE + TIMES
 
 times=[]
 for specfile in specfiles:
-    t=specfile.split(' ')[1].split('_')[0]
-    t=float(t[0:2])+float(t[2:4])/60.+float(t[4:])/3600.
+    t=specfile.split(' ')[2].split('_')[0] #extract the 6 digit timestamp
+    t=float(t[0:2])+float(t[2:4])/60.+float(t[4:])/3600. #convert to a decimal type hour
     times.append(round(t,4))               
 times=times[:len(texp)]
 
 date=np.asarray([specfiles[0].split(' ')[0].split('_')[-1][:2], \
                  specfiles[0].split(' ')[0].split('_')[-1][2:4], \
-                 specfiles[0].split(' ')[0].split('_')[-1][4:] ], dtype=float)
+                 specfiles[0].split(' ')[0].split('_')[-1][4:] ], dtype=float)#extract 8 digit day stamp
 
 
 #================ IMPORT BLACK PIXELS
 
-blackfiles=glob.glob(dir+'Spectrometer_110516*U2_*pix.dark13.txt')
+blackfiles=np.asarray(glob.glob(dir+'Spectrometer_110516*U2_*pix.dark13.txt'))
 
-black=[]
-for i in range(len(blackfiles)):
-    black.append(np.genfromtxt(blackfiles[i],delimiter=',')[:-1])
+#sort in ascending exposure, and then ascending channel
+blackfiles=sortfilenames(blackfiles)
 
-black=np.asarray(spec)
+#import the spectral data into an multi-dim array
+black=importfilenames(blackfiles)
 
-print(black)
+
+
+#================ DARK SUBTRACTION
+

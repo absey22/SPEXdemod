@@ -4,6 +4,11 @@
 
 function poly2d, x, y, coefs
 
+;print, 'x',x
+;print,'y',y
+;print, 'coefs',coefs
+
+print, size(coefs)
 z = make_array(n_elements(x), n_elements(y), /double)
 
 for xx=0, n_elements(x)-1 do begin
@@ -15,6 +20,7 @@ for xx=0, n_elements(x)-1 do begin
       endfor
    endfor
 endfor
+
 
 return, z
 end

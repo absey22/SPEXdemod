@@ -99,15 +99,15 @@ specfiles = make_array(2,n_elements(texp),/string)
 sline = make_array(n_elements(texp))
 for c=0, 1 do begin
    specfiles[c,*] = file_search(dir+'Spectrometer_110516'+strtrim(c+1,2)+'U2_*pix.txt')
+   print,c
+   print, 'filename:',specfiles
    for sl=0, n_elements(texp)-1 do begin
       temp = strsplit(specfiles[c,sl],'_',/extract)
-      print, 'c',c,'    sl',sl
-      print,n_elements(temp)-8
+      print,'temp:',temp[n_elements(temp)-8]
       sline[sl] = temp[n_elements(temp)-8]
    endfor
-   print,'BEFORE',specfiles[c,*]
+   print, 'sline',sline
    specfiles[c,*] = specfiles[c,sort(sline)]
-   print,'AFTER',specfiles[c,*]
 endfor
 ; import data
 spec = make_array(3648,2,n_elements(texp))
@@ -122,19 +122,12 @@ for sl=0, n_elements(texp)-1 do begin
 endfor
 
 
-stop
-END
 
 ;;================ IMPORT DATE + TIMES
 times = make_array(n_elements(texp),/float)
 date = make_array(3,/float) ; [day,month,year]
 for sl=0, n_elements(texp)-1 do begin
    temp = strsplit(specfiles[0,sl],'_',/extract)
-   print,temp
-   print,'  '
-   print,strmid(temp[n_elements(temp)-2],9,2)
-   print, strmid(temp[n_elements(temp)-2],11,2) /60d
-   print,strmid(temp[n_elements(temp)-2],13,2) /60d^2d
    times[sl] = strmid(temp[n_elements(temp)-2],9,2) +$
                strmid(temp[n_elements(temp)-2],11,2) /60d +$
                strmid(temp[n_elements(temp)-2],13,2) /60d^2d
@@ -189,6 +182,8 @@ for sl=0, n_elements(texp)-1 do begin
    endfor
 endfor
 
+stop
+END
 
 ;;================ WAVELENGTH CALIBRATION
 coefs = [ [355.688, 0.167436, -2.93242e-06, -2.22549e-10], $
