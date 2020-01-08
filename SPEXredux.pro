@@ -1,47 +1,61 @@
 PRO SPEXredux, dir
 
-print,'specified dir'
-  
+;dir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013_105035'
+
+;default data items as per GvH:
+;'/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013_105035'
+
 if strmid(dir,0,/reverse_offset) ne path_sep() then dir += path_sep()
 
 
-print, dir
+;print, '   '
+;print, 'specified dir:'
+;print, dir
 
 
+
+
+;function defining method changed in current version of IDL?
+;SPEXredux crashes on compiling with these internal functions:
 
 ;;================
 ;;================ FUNCTIONS
 ;;================
-FUNCTION poly2d, x, y, coefs
+;(moved to separate script poly2d.pro)
+;FUNCTION poly2d, x, y, coefs
+;
+;z = make_array(n_elements(x), n_elements(y), /double)
+;
+;for xx=0, n_elements(x)-1 do begin
+;   for yy=0, n_elements(y)-1 do begin
+;      for i=0, (size(coefs))[2]-1 do begin
+;         for j=0, (size(coefs))[1]-1 do begin
+;            z[xx,yy] += coefs[j,i] *x[xx]^i *y[yy]^j
+;         endfor
+;      endfor
+;   endfor
+;endfor
+;
+;RETURN, z
+;end
 
-z = make_array(n_elements(x), n_elements(y), /double)
 
-for xx=0, n_elements(x)-1 do begin
-   for yy=0, n_elements(y)-1 do begin
-      for i=0, (size(coefs))[2]-1 do begin
-         for j=0, (size(coefs))[1]-1 do begin
-            z[xx,yy] += coefs[j,i] *x[xx]^i *y[yy]^j
-         endfor
-      endfor
-   endfor
-endfor
+;(moved to separate script astm.pro)
+;FUNCTION ASTM, lambdamin, lambdamax
+;
+;if (size(findfile('solarspec.sav')))[0] ne 0 then $
+;   restore, 'solarspec.sav' else print, '*** error: solarspec.sav file not found ***'
+;
+;minel = (sort(abs(solar[*,0]-lambdamin)))[0]
+;maxel = (sort(abs(solar[*,0]-lambdamax)))[0]
+;
+;irrad = mean(solar[minel:maxel,1])
+;
+;RETURN, irrad
+;end
 
-return, z
-END
 
 
-FUNCTION ASTM, lambdamin, lambdamax
-
-if (size(findfile('solarspec.sav')))[0] ne 0 then $
-   restore, 'solarspec.sav' else print, '*** error: solarspec.sav file not found ***'
-
-minel = (sort(abs(solar[*,0]-lambdamin)))[0]
-maxel = (sort(abs(solar[*,0]-lambdamax)))[0]
-
-irrad = mean(solar[minel:maxel,1])
-
-return, irrad
-END
 
 
 
@@ -54,10 +68,11 @@ pantilt = make_array(2,9999,/float)
 temperature = make_array(2,9999,/float)
 texp = make_array(9999,/float)
 openr, 1, meta
+
 on_ioerror, abortreadf ; read file untill error occurs
    for i=0, 10 do readf, 1, temp ; header
    for sl=0, 999 do begin
-      readf, 1, temp ; ! Scriptline
+      readf, 1, temp            ; ! Scriptline
       for pt=0, 1 do begin
          readf, 1, temp
          pantilt[pt,sl] = temp
@@ -77,6 +92,7 @@ temperature = temperature[*,0:sl-1]
 texp = texp[0:sl-1]
 
 
+
 ;;================ IMPORT SPECTRA
 ; find and sort file names
 specfiles = make_array(2,n_elements(texp),/string)
@@ -85,9 +101,13 @@ for c=0, 1 do begin
    specfiles[c,*] = file_search(dir+'Spectrometer_110516'+strtrim(c+1,2)+'U2_*pix.txt')
    for sl=0, n_elements(texp)-1 do begin
       temp = strsplit(specfiles[c,sl],'_',/extract)
+      print, 'c',c,'    sl',sl
+      print,n_elements(temp)-8
       sline[sl] = temp[n_elements(temp)-8]
    endfor
+   print,'BEFORE',specfiles[c,*]
    specfiles[c,*] = specfiles[c,sort(sline)]
+   print,'AFTER',specfiles[c,*]
 endfor
 ; import data
 spec = make_array(3648,2,n_elements(texp))
@@ -102,11 +122,19 @@ for sl=0, n_elements(texp)-1 do begin
 endfor
 
 
+stop
+END
+
 ;;================ IMPORT DATE + TIMES
 times = make_array(n_elements(texp),/float)
 date = make_array(3,/float) ; [day,month,year]
 for sl=0, n_elements(texp)-1 do begin
    temp = strsplit(specfiles[0,sl],'_',/extract)
+   print,temp
+   print,'  '
+   print,strmid(temp[n_elements(temp)-2],9,2)
+   print, strmid(temp[n_elements(temp)-2],11,2) /60d
+   print,strmid(temp[n_elements(temp)-2],13,2) /60d^2d
    times[sl] = strmid(temp[n_elements(temp)-2],9,2) +$
                strmid(temp[n_elements(temp)-2],11,2) /60d +$
                strmid(temp[n_elements(temp)-2],13,2) /60d^2d
@@ -114,6 +142,8 @@ endfor
 date[0] = strmid(temp[n_elements(temp)-2],0,2)
 date[1] = strmid(temp[n_elements(temp)-2],2,2)
 date[2] = strmid(temp[n_elements(temp)-2],4,4)
+
+
 
 
 ;;================ IMPORT BLACK PIXELS
@@ -139,6 +169,9 @@ for sl=0, n_elements(texp)-1 do begin
       close, 1
    endfor
 endfor
+
+
+
 
 
 ;;================ DARK SUBTRACTION

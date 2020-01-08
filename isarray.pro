@@ -27,20 +27,20 @@
 ;	Converted to IDL V5.0   W. Landsman   September 1997
 ;-
 ;-------------------------------------------------------------
- 
-	function isarray,a, help=hlp
- 
-	if (n_params(0) lt 1) or keyword_set(hlp) then begin
-	  print,' Tests if the argument is an array.' 
-	  print,' flag = isarray(a)' 
-	  print,'   a = variable to test.                                in'
-	  print,'   flag = test result: 0 if not array, else non-zero.   out' 
-	  return, -1
-	endif
- 
-        ;if n_elements(a) eq 0 then return, 0
-        ;print,'nonzero things'
-        ;s = size(a)
-         
-	return, s[0] ne 0
-	end
+
+function isarray,a, help=hlp
+
+if (n_params(0) lt 1) or keyword_set(hlp) then begin
+  print,' Tests if the argument is an array.' 
+  print,' flag = isarray(a)' 
+  print,'   a = variable to test.                                in'
+  print,'   flag = test result: 0 if not array, else non-zero.   out' 
+  return, -1
+endif
+
+;if n_elements(a) eq 0 then return, 0
+;print,'nonzero things'
+s = size(a)
+
+return, s[0] ne 0
+end
