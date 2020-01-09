@@ -4,15 +4,17 @@ import numpy as np
 import sys
 import glob
 
+from scipy.io import readsav
+
 
 if len(sys.argv) == 1:
-    dir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013 105035'
+    parentdir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013 105035'
 else:
-    dir=sys.argv[1]
+    parentdir=sys.argv[1]
 
     
-if str(dir)[-1]!='/':
-    dir+='/'
+if str(parentdir)[-1]!='/':
+    parentdir+='/'
 
 
 
@@ -21,11 +23,11 @@ if str(dir)[-1]!='/':
 def sortfilenames(filenames):
     exps=np.zeros((2*len(texp)))
     channels=exps.copy()
-    for i,fname in enumerate(filenames): #extract channel and exp index info from file list
+    for i,fname in enumerate(filenames): #extract spectral channel and exposure 'index' info from file list
         channels[i]=fname[fname.find('U2_')-1] #key for sorting by channel
         exps[i]=fname.split('_')[-8] # key for sorting by exposure index number
 
-    expkey=np.argsort(exps)
+    expkey=np.argsort(exps) #return indices ordered for sorting by the exposures
 
     filenames=filenames[expkey] #sort the file list in ascending exposure    
     channels=channels[expkey] #and reorder channelkey accordindly
@@ -35,23 +37,34 @@ def sortfilenames(filenames):
         channelkey[i:i+2]=i+np.argsort(channels[i:i+2])
 
     filenames=filenames[channelkey] #sort the (sorted) file list in ascending channels
-    
+    #print(np.asarray(filenames).reshape(len(texp),2))
     return filenames
 
 #takes a list of filenames and creates a numpy array of rows with the data in each file
+#RESHAPE to exposure rows, and spectral channel columns
 def importfilenames(filenames):
     spectraldata=[]
     for fname in filenames:
         spectraldata.append(np.genfromtxt(fname,delimiter=',')[:-1])#cut of nan at the end
+    #RESHAPE step
+    spectraldata=np.asarray(spectraldata).reshape(len(texp),2,spectraldata[0].shape[-1])
+    return spectraldata
 
-    return np.asarray(spectraldata)
-
+def poly2d(x,y,coeffs):
+    z = np.zeros((np.size(x),np.size(y)))
+    x,y=[x],[y]
+    for xx in range(np.size(x)):
+       for yy in range(np.size(y)):
+          for i in range(coeffs.shape[1]):
+             for j in range(coeffs.shape[0]):
+                z[yy,xx] += coeffs[i,j] * ((x[xx])**i) * ((y[yy])**j)
+    return z
 
 
     
 #================ IMPORT META DATA
 
-metafile=glob.glob(dir+"Meta*.*")
+metafile=glob.glob(parentdir+"Meta*.*")
 
 with open(metafile[0], encoding="utf8", errors='ignore') as meta:
     meta=meta.read().splitlines()
@@ -95,7 +108,7 @@ print(texp)
 
 #================ IMPORT SPECTRA
 
-specfiles=np.asarray(glob.glob(dir+'Spectrometer_110516*U2_*pix.txt'))
+specfiles=np.asarray(glob.glob(parentdir+'Spectrometer_110516*U2_*pix.txt'))
 
 #sort in ascending exposure, and then ascending channel
 #(so that the order matches with the exp times and temps in the Meta data)
@@ -103,7 +116,6 @@ specfiles=sortfilenames(specfiles)
 
 #import the spectral data into an multi-dim array
 spec=importfilenames(specfiles)
-
 
 
 #================ IMPORT DATE + TIMES
@@ -122,7 +134,7 @@ date=np.asarray([specfiles[0].split(' ')[0].split('_')[-1][:2], \
 
 #================ IMPORT BLACK PIXELS
 
-blackfiles=np.asarray(glob.glob(dir+'Spectrometer_110516*U2_*pix.dark13.txt'))
+blackfiles=np.asarray(glob.glob(parentdir+'Spectrometer_110516*U2_*pix.dark13.txt'))
 
 #sort in ascending exposure, and then ascending channel
 blackfiles=sortfilenames(blackfiles)
@@ -134,3 +146,51 @@ black=importfilenames(blackfiles)
 
 #================ DARK SUBTRACTION
 
+
+darkmap=readsav('/home/seymour/Documents/SPEX/demodulation_pipeline/darkmap.sav')
+
+darkmodblack=darkmap.darkmodblack
+darkmodspec=darkmap.darkmodspec
+
+#darkmodblack has python shape (#exps,13,5,5)
+#darkmodblack has   IDL  shape (5,5,13,#exps)
+
+darkblack=np.zeros((len(texp),2,darkmodblack.shape[1]))
+darkspec=np.zeros((len(texp),2,darkmodspec.shape[1]))
+#for each spectral channel (ch) of each exposure (e)
+for e in range(len(texp)):
+    for ch in range(2):
+        for p in range(darkmodblack.shape[1]):
+            darkblack[e,ch,p]=poly2d(texp[e],temperature[e,ch],darkmodblack[ch,p,:,:])
+        for p in range(darkmodspec.shape[1]):
+            darkspec[e,ch,p]=poly2d(texp[e],temperature[e,ch],darkmodspec[ch,p,:,:])
+            spec[e,ch,p]=(spec[e,ch,p]-darkspec[e,ch,p])-np.mean(black[e,ch,:]-darkblack[e,ch,:])
+
+
+
+
+
+#================ WAVELENGTH CALIBRATION
+coeffs = np.asarray([ [355.688, 0.167436, -2.93242e-06, -2.22549e-10], \
+          [360.071, 0.165454, -3.35036e-06, -1.88750e-10] ] )
+
+#wavs = make_array(2, 3648)
+#for c=0, 1 do wavs[c,*] = poly(findgen(3648),coefs[*,c])
+
+from scipy.interpolate import interp1d
+plt.plot(spec[0,0],'r')
+plt.plot(spec[0,1],'b')
+
+
+wavs=np.zeros((2,spec.shape[2]))
+for ch in range(2): # in each spectral channel
+    wavs[ch,:]=np.polyval(coeffs[ch,:][::-1],np.arange(spec.shape[2])) #reverse order of coeffs
+
+
+for e in range(len(texp)):
+    interpfunc=interp1d(wavs[:,0],spec[e,0,:],kind='linear')
+    spec[e,0,:]=interpfunc(wavs[:,1])
+    
+plt.plot(spec[0,0],'r--')
+plt.plot(spec[0,1],'b--')
+plt.savefig('./temp.png')

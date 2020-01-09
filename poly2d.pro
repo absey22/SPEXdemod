@@ -8,9 +8,9 @@ function poly2d, x, y, coefs
 ;print,'y',y
 ;print, 'coefs',coefs
 
-print, size(coefs)
-z = make_array(n_elements(x), n_elements(y), /double)
 
+z = make_array(n_elements(x), n_elements(y), /double)
+  
 for xx=0, n_elements(x)-1 do begin
    for yy=0, n_elements(y)-1 do begin
       for i=0, (size(coefs))[2]-1 do begin

@@ -103,10 +103,8 @@ for c=0, 1 do begin
    print, 'filename:',specfiles
    for sl=0, n_elements(texp)-1 do begin
       temp = strsplit(specfiles[c,sl],'_',/extract)
-      print,'temp:',temp[n_elements(temp)-8]
       sline[sl] = temp[n_elements(temp)-8]
    endfor
-   print, 'sline',sline
    specfiles[c,*] = specfiles[c,sort(sline)]
 endfor
 ; import data
@@ -182,16 +180,20 @@ for sl=0, n_elements(texp)-1 do begin
    endfor
 endfor
 
-stop
-END
+
+
 
 ;;================ WAVELENGTH CALIBRATION
 coefs = [ [355.688, 0.167436, -2.93242e-06, -2.22549e-10], $
           [360.071, 0.165454, -3.35036e-06, -1.88750e-10] ]
 wavs = make_array(2, 3648)
 for c=0, 1 do wavs[c,*] = poly(findgen(3648),coefs[*,c])
+plot,wavs
 for sl=0, n_elements(texp)-1 do $
    spec[*,0,sl] = interpol(spec[*,0,sl],wavs[0,*],wavs[1,*])
+
+stop
+END
 
 
 ;;================ "FLAT FIELDING" / DIFFERENTIAL TRANSMISSION CORRECTION
