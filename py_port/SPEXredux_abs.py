@@ -5,7 +5,7 @@ import sys
 import glob
 
 from scipy.io import readsav
-
+from scipy.interpolate import interp1d
 
 if len(sys.argv) == 1:
     parentdir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013 105035'
@@ -169,28 +169,37 @@ for e in range(len(texp)):
 
 
 
-
 #================ WAVELENGTH CALIBRATION
+
+#plt.plot(spec[0,0],'r')
+#plt.plot(spec[0,1],'b')
+
 coeffs = np.asarray([ [355.688, 0.167436, -2.93242e-06, -2.22549e-10], \
           [360.071, 0.165454, -3.35036e-06, -1.88750e-10] ] )
 
-#wavs = make_array(2, 3648)
-#for c=0, 1 do wavs[c,*] = poly(findgen(3648),coefs[*,c])
-
-from scipy.interpolate import interp1d
-plt.plot(spec[0,0],'r')
-plt.plot(spec[0,1],'b')
-
-
-wavs=np.zeros((2,spec.shape[2]))
+wavs=np.zeros((spec.shape[2],2))
 for ch in range(2): # in each spectral channel
-    wavs[ch,:]=np.polyval(coeffs[ch,:][::-1],np.arange(spec.shape[2])) #reverse order of coeffs
-
+    wavs[:,ch]=np.polyval(coeffs[ch,:][::-1],np.arange(spec.shape[2])) #reverse order of coeffs
 
 for e in range(len(texp)):
     interpfunc=interp1d(wavs[:,0],spec[e,0,:],kind='linear')
-    spec[e,0,:]=interpfunc(wavs[:,1])
-    
-plt.plot(spec[0,0],'r--')
-plt.plot(spec[0,1],'b--')
-plt.savefig('./temp.png')
+    spec[e,0,:]=interpfunc(wavs[:,1])# interpolation doesn't happen on the second channel of the spectra, just the wavelength calibration due to differential path.
+
+#plt.plot(spec[0,0],'r--')
+#plt.plot(spec[0,1],'b--')
+#plt.savefig('./temp.png')
+
+
+
+#================ "FLAT FIELDING" / DIFFERENTIAL TRANSMISSION CORRECTION
+transmission=readsav('/home/seymour/Documents/SPEX/demodulation_pipeline/transmission.sav')
+
+T2=transmission.T2
+
+print(T2.shape)
+
+for e in range(len(texp)):#divide spectral channel 1 by transmission function to match spec chan 2
+    spec[e,1,:] /= T2
+#T2=spec[*,1,33]/spec[*,0,33]
+#dir='Cabauw2013/08072013/ScriptRun_08072013 151130'
+

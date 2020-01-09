@@ -99,8 +99,6 @@ specfiles = make_array(2,n_elements(texp),/string)
 sline = make_array(n_elements(texp))
 for c=0, 1 do begin
    specfiles[c,*] = file_search(dir+'Spectrometer_110516'+strtrim(c+1,2)+'U2_*pix.txt')
-   print,c
-   print, 'filename:',specfiles
    for sl=0, n_elements(texp)-1 do begin
       temp = strsplit(specfiles[c,sl],'_',/extract)
       sline[sl] = temp[n_elements(temp)-8]
@@ -184,13 +182,31 @@ endfor
 
 
 ;;================ WAVELENGTH CALIBRATION
+
+;plot,spec[*,0,0]
+
+;cgDisplay, 1600, 1350
+;cgPlot,spec[*,0,0],Position=[0.1, 0.1, 0.9, 0.45]
+;cgPlot,spec[*,1,0],Position=[0.1, 0.55, 0.9, 0.90], /NoErase
+
 coefs = [ [355.688, 0.167436, -2.93242e-06, -2.22549e-10], $
           [360.071, 0.165454, -3.35036e-06, -1.88750e-10] ]
 wavs = make_array(2, 3648)
 for c=0, 1 do wavs[c,*] = poly(findgen(3648),coefs[*,c])
-plot,wavs
+
+a=spec[*,1,1]
+print,a[0:10]
+print,'  '
 for sl=0, n_elements(texp)-1 do $
    spec[*,0,sl] = interpol(spec[*,0,sl],wavs[0,*],wavs[1,*])
+
+a=spec[*,1,1]
+print,a[0:10]
+;cgDisplay, 1600, 1350
+;cgPlot,spec[*,0,0],Position=[0.1, 0.1, 0.45, 0.45]
+;cgPlot,spec[*,1,0],Position=[0.1, 0.55, 0.45, 0.90], /NoErase
+;cgPlot,spec[*,0,1], Position=[0.55, 0.1, 0.9, 0.55], /NoErase
+;cgPlot,spec[*,1,1], Position=[0.55, 0.45, 0.90, 0.90], /NoErase
 
 stop
 END
