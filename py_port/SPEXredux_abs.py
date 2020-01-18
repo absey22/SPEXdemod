@@ -7,7 +7,7 @@ import glob
 from scipy.io import readsav
 from scipy.interpolate import interp1d
 
-from MORcomposition import MOR
+from MORobject import MOR
 
 
 
