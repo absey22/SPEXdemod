@@ -1,16 +1,13 @@
-PRO SPEXredux, dir
+PRO SPEXredux
 
-;dir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013_105035'
-
-;default data items as per GvH:
-;'/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013_105035'
-
+dir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013 105035'
+;dir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_08072013 173310/'
 if strmid(dir,0,/reverse_offset) ne path_sep() then dir += path_sep()
 
 
-;print, '   '
-;print, 'specified dir:'
-;print, dir
+print, '   '
+print, 'specified dir:'
+print, dir
 
 
 
@@ -96,6 +93,7 @@ texp = texp[0:sl-1]
 ;;================ IMPORT SPECTRA
 ; find and sort file names
 specfiles = make_array(2,n_elements(texp),/string)
+
 sline = make_array(n_elements(texp))
 for c=0, 1 do begin
    specfiles[c,*] = file_search(dir+'Spectrometer_110516'+strtrim(c+1,2)+'U2_*pix.txt')
@@ -105,6 +103,8 @@ for c=0, 1 do begin
    endfor
    specfiles[c,*] = specfiles[c,sort(sline)]
 endfor
+
+
 ; import data
 spec = make_array(3648,2,n_elements(texp))
 temp = make_array(3648)
@@ -194,22 +194,21 @@ coefs = [ [355.688, 0.167436, -2.93242e-06, -2.22549e-10], $
 wavs = make_array(2, 3648)
 for c=0, 1 do wavs[c,*] = poly(findgen(3648),coefs[*,c])
 
-a=spec[*,1,1]
-print,a[0:10]
-print,'  '
+;a=spec[*,1,1]
+;print,a[0:10]
+;print,'  '
 for sl=0, n_elements(texp)-1 do $
    spec[*,0,sl] = interpol(spec[*,0,sl],wavs[0,*],wavs[1,*])
 
-a=spec[*,1,1]
-print,a[0:10]
+;a=spec[*,1,1]
+;print,a[0:10]
 ;cgDisplay, 1600, 1350
 ;cgPlot,spec[*,0,0],Position=[0.1, 0.1, 0.45, 0.45]
 ;cgPlot,spec[*,1,0],Position=[0.1, 0.55, 0.45, 0.90], /NoErase
 ;cgPlot,spec[*,0,1], Position=[0.55, 0.1, 0.9, 0.55], /NoErase
 ;cgPlot,spec[*,1,1], Position=[0.55, 0.45, 0.90, 0.90], /NoErase
 
-stop
-END
+
 
 
 ;;================ "FLAT FIELDING" / DIFFERENTIAL TRANSMISSION CORRECTION
@@ -220,6 +219,7 @@ for sl=0, n_elements(texp)-1 do spec[*,1,sl] /= T2
 ; dir='Cabauw2013/08072013/ScriptRun_08072013 151130'
 
 
+
 ;;================ EFFICIENCY CORRECTION INIT
 ; dir='Cabauw2013/05072013/POL_1a'
 if (size(findfile('efficiency.sav')))[0] ne 0 then $
@@ -228,18 +228,28 @@ fitoutpol = fitout
 ; correct sheet polarizer performance above 672 nm
 wl660 = (sort(abs(fitoutpol[*,5,0]-660)))[0]
 wl672 = (sort(abs(fitoutpol[*,5,0]-672)))[0]
+
+
 for sl=1, (size(fitoutpol))[3]-1 do $
    fitoutpol[wl672:*,1,sl] = mean(fitoutpol[wl660:wl672,1,sl])
+
 ; correct sheet polarizer aolp (determined) above 672 nm
 wl400 = (sort(abs(fitoutpol[*,5,0]-400)))[0]
 for sl=1, (size(fitoutpol))[3]-1 do $
    fitoutpol[wl672:*,3,sl] = mean(fitoutpol[wl400:wl672,3,sl])
+
 ; duplicate aolp right above 0 to right above 180, and right below 180 to right below 0
 ; to allow for aolp interpolation close to 0 and 180
+
+
+;print,size(transpose((fitoutpol[*,3,1:18] mod !dpi +!dpi) mod !dpi))
+
 aolpwrap = transpose( $
            [ transpose([(fitoutpol[*,3,1:18] mod !dpi +!dpi) mod !dpi]), $
              reform([(fitoutpol[*,3,7] mod !dpi +!dpi) mod !dpi -!dpi],1,1,3613), $
              reform([(fitoutpol[*,3,8] mod !dpi +!dpi) mod !dpi +!dpi],1,1,3613) ] /!dtor)
+
+
 fitoutwrap = transpose( $
            [ transpose(fitoutpol[*,*,1:18]), $
              reform(transpose(fitoutpol[*,*,7]),1,8,3613), $
@@ -254,8 +264,9 @@ if (size(findfile('polspec.sav')))[0] ne 0 then $
 inp = {comp:['mgf2','sio2'], thick:[3.82,-1.63]}
 wavsDM = reform(wavs[1,*])
 specDM = transpose([ reform(transpose(polspec),1,2,3648), transpose(spec) ])
+
 demod, inp, wavsDM, specDM, fitout, $
-       doplot=1, aolp=90*!dtor, lrange=[370., 865.];, /quiet
+       doplot=0, aolp=90*!dtor, lrange=[370., 865.];, /quiet
 
 ;;================ EFFICIENCY CORRECTION APPLY
 fitoutcal = fitout
@@ -270,6 +281,7 @@ for sl=0, n_elements(texp) do begin
    endfor
    fitoutcal[*,1,sl] /= eff[*,sl]
 endfor
+
 
 
 ;;================ SMOOTH POLARIZATION

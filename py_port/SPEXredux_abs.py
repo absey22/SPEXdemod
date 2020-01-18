@@ -7,8 +7,14 @@ import glob
 from scipy.io import readsav
 from scipy.interpolate import interp1d
 
+from MORcomposition import MOR
+
+
+
+
 if len(sys.argv) == 1:
     parentdir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013 105035'
+    #parentdir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_08072013 173310/'
 else:
     parentdir=sys.argv[1]
 
@@ -23,6 +29,7 @@ if str(parentdir)[-1]!='/':
 def sortfilenames(filenames):
     exps=np.zeros((2*len(texp)))
     channels=exps.copy()
+    
     for i,fname in enumerate(filenames): #extract spectral channel and exposure 'index' info from file list
         channels[i]=fname[fname.find('U2_')-1] #key for sorting by channel
         exps[i]=fname.split('_')[-8] # key for sorting by exposure index number
@@ -32,13 +39,13 @@ def sortfilenames(filenames):
     filenames=filenames[expkey] #sort the file list in ascending exposure    
     channels=channels[expkey] #and reorder channelkey accordindly
 
-    channelkey=np.zeros_like(expkey)
+    channelkey=np.empty_like(expkey)
     for i in range(0,len(channels),2): #sort channels in each successive exposure
         channelkey[i:i+2]=i+np.argsort(channels[i:i+2])
-
+    
     filenames=filenames[channelkey] #sort the (sorted) file list in ascending channels
-    #print(np.asarray(filenames).reshape(len(texp),2))
     return filenames
+
 
 #takes a list of filenames and creates a numpy array of rows with the data in each file
 #RESHAPE to exposure rows, and spectral channel columns
@@ -46,9 +53,12 @@ def importfilenames(filenames):
     spectraldata=[]
     for fname in filenames:
         spectraldata.append(np.genfromtxt(fname,delimiter=',')[:-1])#cut of nan at the end
+        
     #RESHAPE step
     spectraldata=np.asarray(spectraldata).reshape(len(texp),2,spectraldata[0].shape[-1])
     return spectraldata
+
+
 
 def poly2d(x,y,coeffs):
     z = np.zeros((np.size(x),np.size(y)))
@@ -157,13 +167,15 @@ darkmodspec=darkmap.darkmodspec
 
 darkblack=np.zeros((len(texp),2,darkmodblack.shape[1]))
 darkspec=np.zeros((len(texp),2,darkmodspec.shape[1]))
-#for each spectral channel (ch) of each exposure (e)
+#for each exposure (e)
 for e in range(len(texp)):
+    #for each spectral channel (ch) 
     for ch in range(2):
         for p in range(darkmodblack.shape[1]):
             darkblack[e,ch,p]=poly2d(texp[e],temperature[e,ch],darkmodblack[ch,p,:,:])
         for p in range(darkmodspec.shape[1]):
             darkspec[e,ch,p]=poly2d(texp[e],temperature[e,ch],darkmodspec[ch,p,:,:])
+            #e=exp#, ch=spectral chan (0 or 1), p=counter variable
             spec[e,ch,p]=(spec[e,ch,p]-darkspec[e,ch,p])-np.mean(black[e,ch,:]-darkblack[e,ch,:])
 
 
@@ -183,7 +195,7 @@ for ch in range(2): # in each spectral channel
 
 for e in range(len(texp)):
     interpfunc=interp1d(wavs[:,0],spec[e,0,:],kind='linear')
-    spec[e,0,:]=interpfunc(wavs[:,1])# interpolation doesn't happen on the second channel of the spectra, just the wavelength calibration due to differential path.
+    spec[e,0,:]=interpfunc(wavs[:,1])# interpolation for wavelength calibration due to differential path.
 
 #plt.plot(spec[0,0],'r--')
 #plt.plot(spec[0,1],'b--')
@@ -196,10 +208,81 @@ transmission=readsav('/home/seymour/Documents/SPEX/demodulation_pipeline/transmi
 
 T2=transmission.T2
 
-print(T2.shape)
-
 for e in range(len(texp)):#divide spectral channel 1 by transmission function to match spec chan 2
     spec[e,1,:] /= T2
+
+#settings from GvH
 #T2=spec[*,1,33]/spec[*,0,33]
 #dir='Cabauw2013/08072013/ScriptRun_08072013 151130'
+
+
+#================ EFFICIENCY CORRECTION INIT
+#settings from GvH
+#dir='Cabauw2013/05072013/POL_1a'
+
+efficiency=readsav('/home/seymour/Documents/SPEX/demodulation_pipeline/efficiency.sav')
+
+fitoutpol=np.copy(efficiency.fitout)
+
+
+#correct sheet polarizer performance above 672 nm
+# 5 along second axis is an array of wavelengths)
+wl660 = np.argsort(abs(fitoutpol[0,5,:]-660))[0]
+wl672 = np.argsort(abs(fitoutpol[0,5,:]-672))[0]
+
+
+#for i in range(21):
+#    plt.plot(fitoutpol[i,1,:],color=plt.cm.tab20(i))
+
+#after 672nm, replace the polarizer performance with the mean of the previous 12nm
+# 0th element along axis=1 must be a ''baseline'' of some sort, it is not altered.
+for sl in range(1,fitoutpol.shape[0]):
+    fitoutpol[sl,1,wl672:] = np.mean(fitoutpol[sl,1,wl660:1+wl672])#,keepdims=True)
+    
+#for i in range(21):
+#    plt.plot(fitoutpol[i,1,:],'.',color=plt.cm.tab20(i))
+#plt.show()
+
+#correct sheet polarizer aolp (determined) above 672 nm
+# 3 along second axis is polarizer aolp
+wl400 = np.argsort(abs(fitoutpol[0,5,:]-400))[0]
+
+
+#after 672nm, replace the aolp with the mean of the previous 272nm
+for sl in range(1,fitoutpol.shape[0]):
+    fitoutpol[sl,3,wl672:] = np.mean(fitoutpol[sl,3,wl400:1+wl672])
+
+#duplicate aolp right above 0 to right above 180, and right below 180 to right below 0
+# to allow for aolp interpolation close to 0 and 180
+
+
+aolpwrap = (180./np.pi) * np.vstack( [((fitoutpol[1:19,3,:] % np.pi)+np.pi)%np.pi, \
+                      ((fitoutpol[7,3,:][np.newaxis,:] % np.pi +np.pi) % np.pi) -np.pi,\
+                       ((fitoutpol[8,3,:][np.newaxis,:] % np.pi +np.pi) % np.pi) +np.pi] )
+
+fitoutwrap = np.vstack( [ fitoutpol[1:19,:,:], \
+                          fitoutpol[7,:,:][np.newaxis,:],   \
+                          fitoutpol[8,:,:][np.newaxis,:]   ] )
+
+
+#================ DEMODULATE POLARIZATION
+#settings from GvH
+# dir='Cabauw2013/08072013/ScriptRun_08072013 151130'
+# polspec=spec[*,*,90]
+
+polspec=readsav('/home/seymour/Documents/SPEX/demodulation_pipeline/polspec.sav')
+polspec=polspec.polspec
+
+inp=MOR(composition=['mgf2','sio2'],thickness=[3.82,-1.63])
+
+print(inp.comp)
+
+wavsDM=wavs[:,1]
+specDM=np.vstack([polspec[np.newaxis,:],spec])
+
+inp.add_layer('other')
+
+print(inp.comp)
+
+
 
