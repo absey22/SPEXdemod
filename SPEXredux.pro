@@ -268,6 +268,9 @@ specDM = transpose([ reform(transpose(polspec),1,2,3648), transpose(spec) ])
 demod, inp, wavsDM, specDM, fitout, $
        doplot=0, aolp=90*!dtor, lrange=[370., 865.];, /quiet
 
+stop
+END
+
 ;;================ EFFICIENCY CORRECTION APPLY
 fitoutcal = fitout
 eff = make_array( (size(fitout))[1], n_elements(texp)+1 )

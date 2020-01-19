@@ -82,7 +82,6 @@
 ;------------------------------------------------------------------------------
 
 FUNCTION OPTICSDATA, lambda
-
 nlambda = N_ELEMENTS(lambda)
 
 optics = REPLICATE({name:'', N:DCOMPLEXARR(nlambda,2) $  ; Refractive index
@@ -104,6 +103,7 @@ optics.name = [ 'al2o3', 'bab2o4', 'caco3', 'mgf2', 'sio2', 'tio2', 'yvo4', '', 
 ; Al2O3, Sapphire, 0.22 - 5.0 micron
 ; Malitson, I. H. and Dodge, M. J., Refractive index and birefringence of synthetic sapphire,
 ; J.Opt. Soc. Am. 62, 1405 (1972).
+print,size(optics[0].N,/DIMENSIONS)
 optics[0].N[0:6,0] = [1., 1.43134936, 0.0726631^2, 0.65054713, 0.1193242^2, 5.3414021, 18.028251^2]
 optics[0].N[0:6,1] = [1., 1.5039759, 0.0740288^2, 0.55069141, 0.1216529^2,6.59273791, 20.072248^2]
 optics[0].dNdT[*,0] = [293., 1.755, -45.2665E-06, 83.5457E-06, 8.27, 5.85,  7.21, -2.4]
@@ -111,6 +111,7 @@ optics[0].dNdT[*,1] = [293., 1.748, -39.8961E-06, 81.9579E-06, 8.00, 5.42,  6.47
 optics[0].tec = 1E-6*[7.21, 6.47]
 ;optics[0].dndtor = 13.6*1e-6 ; @ 589 nm, RT
 ;optics[0].dndtex = 14.7*1e-6 ; @ 589 nm, RT
+print,optics[0].N
 
 ;; BaB2O4, BBO, 0.22 - 1.06 micron
 ;optics[1].N[0:5,0] = SQRT(2.7405 + 0.0184*lambda^2 / (lambda^2 - 0.0179) - 0.0155 * lambda^2)
@@ -701,6 +702,10 @@ if (N_ELEMENTS(quiet) eq 0) then quiet = 0
 
 ; Select data in wavelength range
 nlambda = N_ELEMENTS(lambdainp)
+
+;print,'lrange',lrange
+;print,'lambdainp',lambdainp[0],lambdainp[nlambda-1]
+
 if (lrange[0] lt lambdainp[0]) then begin
   PRINT, '   Warning: adjusting lambda_min to avoid edge effect: ' + STRING(lambdainp[0]+10, FORMAT='(I3)') + ' nm, (was ' $
          + STRING(lambdainp[0], FORMAT='(I3)') + ' nm)'
@@ -719,23 +724,40 @@ lambda = lambdainp[lmin:lmax]
 nlambda = N_ELEMENTS(lambda)
 spectra = spectra[lmin:lmax,*,*]
 
+;; print,'lmin',lmin
+;; print,'lmax',lmax
+;; print,'lminout',lminout
+;; print,'lmaxout',lmaxout
+;; print,lambda[0:3]
+;; print,nlambda
+
+
+
 szspectra = SIZE(spectra, /DIMENSIONS)
+
+
+
 if (N_ELEMENTS(szspectra) eq 3) then nspect = szspectra[2] else nspect = 1
 
+
+
 ; Setup plot window if DOPLOT = 1
-if doplot ne 0 then begin
-  sysvar = {p:!P, x:!X, y:!Y, z:!Z, w:!D.WINDOW, dev:!D.NAME}
-  SET_PLOT, 'x', /COPY
-;  WINDOW, 0, RETAIN = 2, XSIZE = 900, YSIZE = 700
-  WINDOW, 0, XSIZE = 900, YSIZE = 700 ; GvH
-  !P.MULTI = [0,3,3]
-  !P.CHARSIZE = 2.5
-  device, decomposed=0
-  cgloadct, 4, ncolors=254
-endif
+
+;; if doplot ne 0 then begin
+;;   sysvar = {p:!P, x:!X, y:!Y, z:!Z, w:!D.WINDOW, dev:!D.NAME}
+;;   SET_PLOT, 'x', /COPY
+;; ;  WINDOW, 0, RETAIN = 2, XSIZE = 900, YSIZE = 700
+;;   WINDOW, 0, XSIZE = 900, YSIZE = 700 ; GvH
+;;   !P.MULTI = [0,3,3]
+;;   !P.CHARSIZE = 2.5
+;;   device, decomposed=0
+;;   cgloadct, 4, ncolors=254
+;; endif
 
 ; Load optical literature parameters
 optics = OPTICSDATA(lambda)
+stop
+END
 ; Calculate spectral retardance based on input composition of multiple-order retarder
 deltalit = DEMOD_GET_DELTA(input, lambda, optics)
 if ~(quiet) then PRINT, MEAN(deltalit), FORMAT = '("Mean retardance = ",I7)'
@@ -781,38 +803,39 @@ for jj=0, nspect-1 do begin
   fitout[*,6,jj] = trat[indx,0]
   fitout[*,7,jj] = delta[indx,0]
 ; Plot if DOPLOT = 1
-if doplot ne 0 then begin
-  WSET, 0
-  !P.MULTI = [3,3,3]
-  PLOT, lambda[indx], fitout[*,0,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'Offset / DoLP', YRANGE = [0,1]
-  OPLOT, lambda[indx], fitout[*,1,jj], COLOR = 'ff6666'x
-;  for jj=0, nspect-1 do begin
-;     oplot, lambda[indx], fitout[*,0,jj]
-;     oplot, lambda[indx], fitout[*,1,jj], color = 'ff6666'x
-;  endfor
-  PLOT, lambda[indx], fitout[*,2,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'Linear term DoLP', /YSTYLE
-;  for jj=0, nspect-1 do begin
-;     oplot, lambda[indx], fitout[*,2,jj]
-;  endfor
-  PLOT, lambda[indx], fitout[*,3,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'AoLP'
-;  for jj=0, nspect-1 do begin
-;     oplot, lambda[indx], fitout[*,3,jj]
-;  endfor
-  WAIT, 0.001
-endif
+
+;; if doplot ne 0 then begin
+;;   WSET, 0
+;;   !P.MULTI = [3,3,3]
+;;   PLOT, lambda[indx], fitout[*,0,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'Offset / DoLP', YRANGE = [0,1]
+;;   OPLOT, lambda[indx], fitout[*,1,jj], COLOR = 'ff6666'x
+;; ;  for jj=0, nspect-1 do begin
+;; ;     oplot, lambda[indx], fitout[*,0,jj]
+;; ;     oplot, lambda[indx], fitout[*,1,jj], color = 'ff6666'x
+;; ;  endfor
+;;   PLOT, lambda[indx], fitout[*,2,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'Linear term DoLP', /YSTYLE
+;; ;  for jj=0, nspect-1 do begin
+;; ;     oplot, lambda[indx], fitout[*,2,jj]
+;; ;  endfor
+;;   PLOT, lambda[indx], fitout[*,3,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'AoLP'
+;; ;  for jj=0, nspect-1 do begin
+;; ;     oplot, lambda[indx], fitout[*,3,jj]
+;; ;  endfor
+;;   WAIT, 0.001
+;; endif
   
 endfor
 ;fitout = fitout[lminout:lmaxout,*,*]
 
-if doplot ne 0 then begin
-  ; Restore graphics system variables
-  !P = sysvar.p
-  !X = sysvar.x
-  !Y = sysvar.y
-  !Z = sysvar.z
-  SET_PLOT, sysvar.dev
-  WSET, sysvar.w
-endif
+;; if doplot ne 0 then begin
+;;   ; Restore graphics system variables
+;;   !P = sysvar.p
+;;   !X = sysvar.x
+;;   !Y = sysvar.y
+;;   !Z = sysvar.z
+;;   SET_PLOT, sysvar.dev
+;;   WSET, sysvar.w
+;; endif
 
 ; Save output if DOSAVE = 1
 ; [lambda, indx, spectrum]

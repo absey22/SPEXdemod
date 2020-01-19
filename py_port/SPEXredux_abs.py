@@ -40,7 +40,7 @@ def sortfilenames(filenames):
     channels=channels[expkey] #and reorder channelkey accordindly
 
     channelkey=np.empty_like(expkey)
-    for i in range(0,len(channels),2): #sort channels in each successive exposure
+    for i in range(0,len(channels),2): #sort channels 1&2 in each successive exposure
         channelkey[i:i+2]=i+np.argsort(channels[i:i+2])
     
     filenames=filenames[channelkey] #sort the (sorted) file list in ascending channels
@@ -224,7 +224,6 @@ efficiency=readsav('/home/seymour/Documents/SPEX/demodulation_pipeline/efficienc
 
 fitoutpol=np.copy(efficiency.fitout)
 
-
 #correct sheet polarizer performance above 672 nm
 # 5 along second axis is an array of wavelengths)
 wl660 = np.argsort(abs(fitoutpol[0,5,:]-660))[0]
@@ -275,14 +274,16 @@ polspec=polspec.polspec
 
 inp=MOR(composition=['mgf2','sio2'],thickness=[3.82,-1.63])
 
-print(inp.comp)
-
 wavsDM=wavs[:,1]
 specDM=np.vstack([polspec[np.newaxis,:],spec])
 
-inp.add_layer('other')
+from demod_abs import *
 
-print(inp.comp)
+fitout=demod(MORinput=inp, lambdainp=wavsDM, spectra=specDM, \
+             fitout=np.copy(efficiency.fitout), lrange=[370., 865.], \
+             aolp=90*(np.pi/180.) )
+
+
 
 
 
