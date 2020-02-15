@@ -7,7 +7,7 @@ import glob
 from scipy.io import readsav
 from scipy.interpolate import interp1d
 
-from MORobject import MOR
+from classobjects import MOR
 
 
 
@@ -176,7 +176,7 @@ for e in range(len(texp)):
         for p in range(darkmodspec.shape[1]):
             darkspec[e,ch,p]=poly2d(texp[e],temperature[e,ch],darkmodspec[ch,p,:,:])
             #e=exp#, ch=spectral chan (0 or 1), p=counter variable
-            spec[e,ch,p]=(spec[e,ch,p]-darkspec[e,ch,p])-np.mean(black[e,ch,:]-darkblack[e,ch,:])
+            spec[e,ch,p]=(spec[e,ch,p]-darkspec[e,ch,p])-np.mean(black[e,ch,:]-darkblack[e,ch,:]) #typo in tabbing?
 
 
 

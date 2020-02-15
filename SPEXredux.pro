@@ -373,7 +373,7 @@ printf, 1, '! directory', dir, $
            '! PTU offset [Dpan, Dtilt]', [Dpan, Dtilt], $
            '! fitoutcal [offset, DoLP (calibrated and smoothed), slope(DoLP), AoLP [rad] (smoothed), chi^2(best fit), wavelength [nm], T1/T0, MOR [mm]]', fitoutcal, $
            '! spectra [counts]', specdm, $
-           '! polarimetric efficiency', eff, $
+        '! polarimetric efficiency', eff, $
            '! fitout [offset, DoLP (raw), slope(DoLP), AoLP [rad] (raw), chi^2(best fit), wavelength [nm], T1/T0, MOR [mm]]', fitout
 close, 1
 ; .dat: retrieval input @ AERONET wavelengths

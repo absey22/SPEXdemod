@@ -103,7 +103,6 @@ optics.name = [ 'al2o3', 'bab2o4', 'caco3', 'mgf2', 'sio2', 'tio2', 'yvo4', '', 
 ; Al2O3, Sapphire, 0.22 - 5.0 micron
 ; Malitson, I. H. and Dodge, M. J., Refractive index and birefringence of synthetic sapphire,
 ; J.Opt. Soc. Am. 62, 1405 (1972).
-print,size(optics[0].N,/DIMENSIONS)
 optics[0].N[0:6,0] = [1., 1.43134936, 0.0726631^2, 0.65054713, 0.1193242^2, 5.3414021, 18.028251^2]
 optics[0].N[0:6,1] = [1., 1.5039759, 0.0740288^2, 0.55069141, 0.1216529^2,6.59273791, 20.072248^2]
 optics[0].dNdT[*,0] = [293., 1.755, -45.2665E-06, 83.5457E-06, 8.27, 5.85,  7.21, -2.4]
@@ -111,7 +110,6 @@ optics[0].dNdT[*,1] = [293., 1.748, -39.8961E-06, 81.9579E-06, 8.00, 5.42,  6.47
 optics[0].tec = 1E-6*[7.21, 6.47]
 ;optics[0].dndtor = 13.6*1e-6 ; @ 589 nm, RT
 ;optics[0].dndtex = 14.7*1e-6 ; @ 589 nm, RT
-print,optics[0].N
 
 ;; BaB2O4, BBO, 0.22 - 1.06 micron
 ;optics[1].N[0:5,0] = SQRT(2.7405 + 0.0184*lambda^2 / (lambda^2 - 0.0179) - 0.0155 * lambda^2)
@@ -208,15 +206,21 @@ dNabsdT = DBLARR(nlambda,2)
 ; Calculate refractive index as a function of wavelength via Sellmeier equation
 Nabs[*,0] += params1[0,0]
 Nabs[*,1] += params1[0,1]
+
+
+
 for jj = 0, (N_ELEMENTS(WHERE(params1[*,0] ne 0))-1)/2 - 1 do begin
-   Nabs[*,0] = Nabs[*,0] + params1[2*jj+1,0]*lamb^2. / (lamb^2. - params1[2*jj+2,0])
-   Nabs[*,1] = Nabs[*,1] + params1[2*jj+1,1]*lamb^2. / (lamb^2. - params1[2*jj+2,1])
+   Nabs[*,0] = Nabs[*,0] + (params1[2*jj+1,0]*lamb^2. / (lamb^2. - params1[2*jj+2,0]))
+   Nabs[*,1] = Nabs[*,1] + (params1[2*jj+1,1]*lamb^2. / (lamb^2. - params1[2*jj+2,1]))
 endfor
 
 Nabs = SQRT(Nabs)
 
 ; Calculate temperature correction w.r.t. 293 K
 dT = temp - params2[0,0]
+
+
+
 
 if (params2[7,0] eq 0) then begin
   ; Using Schott's Sellmeier-type equation for glasses
@@ -255,28 +259,36 @@ par = (WHERE(tags eq 'PAR') eq -1) ? FLTARR(ncomp > 2,2)+0 : input.par
 rot = (WHERE(tags eq 'ROT') eq -1) ? FLTARR(ncomp)+0 : input.rot
 temp = (WHERE(tags eq 'TEMP') eq -1) ? FLTARR(ncomp)+293 : input.temp
 
+
 if (N_ELEMENTS(N) eq 0) then Nset = 0 else Nset = 1
+
+
 
 nlambda = N_ELEMENTS(lambda)
 delta = FLTARR(nlambda)
 
 ; Loop over optical components
 for jj = 0, ncomp-1 do begin
+  print,comp[jj]
   ; Calculate refractive index
   params1 = Nset ? 0 : optics[WHERE(optics.name eq comp[jj])].N
   params2 = Nset ? 0 : optics[WHERE(optics.name eq comp[jj])].dNdT
   N1 = Nset ? N : DEMOD_REFRINDX(lambda, params1, params2, temp[jj])
-  
+  ;print,'0',N1[0,0]
+  ;print,'1',N1[0,1]
   ; Calculate birefringence
   biref1 = REFORM(N1[*,1] - N1[*,0])
-
+  ;print,biref1[0:2]
   ; Calculate thermal expansion
   a = optics[WHERE(optics.name eq comp[jj])].tec[0]
-  d1 = 1E6*thick[jj]*(1.+a*(temp[jj]-293.))
   
+  d1 = 1E6*thick[jj]*(1.+a*(temp[jj]-293.))
+  ;print,d1
   ; Calculate retardance including field-of-view behavior and thermal expansion
   phi = par[jj,0]
+  print,par[jj,1] ,rot[jj]
   theta = (biref1[0] gt 0) ? par[jj,1] + rot[jj]: par[jj,1] + !pi/2. + rot[jj]
+  
   c1 = SIN(phi)*SIN(theta)
   c2 = SIN(phi)*COS(theta)
   p0 = N1[*,0] * SQRT(1 - (c1/N1[*,0])^2 - (c2/N1[*,0])^2)
@@ -285,6 +297,7 @@ for jj = 0, ncomp-1 do begin
   
   ; Add retardance of each component        
   delta = delta + delta1
+  ;print,(delta*lambda)[0:5]
 
 endfor
 
@@ -724,18 +737,8 @@ lambda = lambdainp[lmin:lmax]
 nlambda = N_ELEMENTS(lambda)
 spectra = spectra[lmin:lmax,*,*]
 
-;; print,'lmin',lmin
-;; print,'lmax',lmax
-;; print,'lminout',lminout
-;; print,'lmaxout',lmaxout
-;; print,lambda[0:3]
-;; print,nlambda
-
-
 
 szspectra = SIZE(spectra, /DIMENSIONS)
-
-
 
 if (N_ELEMENTS(szspectra) eq 3) then nspect = szspectra[2] else nspect = 1
 
@@ -756,10 +759,10 @@ if (N_ELEMENTS(szspectra) eq 3) then nspect = szspectra[2] else nspect = 1
 
 ; Load optical literature parameters
 optics = OPTICSDATA(lambda)
-stop
-END
+
 ; Calculate spectral retardance based on input composition of multiple-order retarder
 deltalit = DEMOD_GET_DELTA(input, lambda, optics)
+
 if ~(quiet) then PRINT, MEAN(deltalit), FORMAT = '("Mean retardance = ",I7)'
 ; Calculate spectral window lengths and positions
 spcwin = DEMOD_SPC_WIN(lambda, deltalit)
@@ -775,6 +778,11 @@ if (nodeltafit) then delta = deltalit else begin
   ; Recalculate spectral window lengths and positions
   spcwin = DEMOD_SPC_WIN(lambda, delta)
 endelse
+stop
+END
+
+
+
 
 ; Calculate positions at which to perform spectral window fitting
 indx = INTARR(nlambda)
