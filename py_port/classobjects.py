@@ -32,7 +32,7 @@ class MOR:
             self.temp=temp
 
 
-#object for constructing a crystal as part of the MOR in the SPEX optics (see demod_abs.py)
+#object for constructing a crystal as part of the MOR in the SPEX optics (see SPEXredux and demod.optics)
 class crystal:
         #name=np.asarray([ 'al2o3'],dtype=str)
         #refrindex=np.full((nlambda,2),0.0,dtype=complex)
@@ -65,7 +65,7 @@ class crystal:
 
             
 
-#object to hold spectral window sizes for fitting (see demod_abs.py)
+#object to hold spectral window sizes for fitting (see demod.demod_spc_win)
 class spectralwindow:
         def __init__(self,Nwavs=None):
             if Nwavs is None:
@@ -77,3 +77,20 @@ class spectralwindow:
                 self.minimum=np.zeros(Nwavs)
                 self.maximum=np.zeros(Nwavs)
                 self.length=np.zeros(Nwavs)
+
+
+#object for Levenberg-Marquardt fitting in demod.demod_spc_norm
+class fitparameters:
+    def __init__(self,fixed=None,limited=None,limits=None):
+        if fixed is None:
+            self.fixed=0
+        else:
+            self.fixed=fixed
+        if limited is None:
+            self.limited=[0,0]
+        else:
+            self.limited=limited
+        if limits is None:
+            self.limits=[0.,0.]
+        else:
+            self.limits=limits

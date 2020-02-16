@@ -377,7 +377,7 @@ endif
 
 ; Calculate intensity spectrum
 Iest = spectra[*,0] + spectra[*,1]
-
+print,'before',MEAN(Iest)
 ; Calculate normalized spectra
 spcnorm = spectra / [ [Iest] , [Iest] ]
 
@@ -396,11 +396,14 @@ normtmp = FLTARR(nlambda)
 ;++++++++++++++++++++++++++++++++++++++++++
 ; GvH ITERATE TRANSMISSION RATIO CORRECTION
 trat = make_array(n_elements(lambda),value=1d)
+
+
 pmulti = !p.multi
 !P.MULTI = [0, 1, 2]
 if doplot ne 0 then window, 10, xsize=600, ysize=900
 ;cgplot, lambda, trat, /xs,yrange=[0.9,1.1]
 for t=0, 20 do begin
+   print,t
    ; Correct spectra
    spectras = [ [trat*REFORM(spectra[*,0])] , [REFORM(spectra[*,1])] ]
    ; Recalculate intensity spectrum
@@ -421,25 +424,26 @@ for t=0, 20 do begin
       ; warning: use with caution: it will wash out contrast in O2A band!!!
       for jj=0L, nlambda-1 do normtmp[jj] = ($
          max(spcnorm[(spcwin.min[jj]+1)>0:spcwin.max[jj]<(nlambda-1),0]) + $
-         min(spcnorm[(spcwin.min[jj]+1)>0:spcwin.max[jj]<(nlambda-1),0]) )/2
+                       min(spcnorm[(spcwin.min[jj]+1)>0:spcwin.max[jj]<(nlambda-1),0]) )/2
    endif else begin
       for jj=0L, nlambda-1 do normtmp[jj] = MEAN(spcnorm[(spcwin.min[jj]+1)>0:$
                                                          spcwin.max[jj]<(nlambda-1),0])
    endelse
-
+   
    ; spectral smooth
-   for jj=0L, nlambda-1 do normtmp[jj] = mean( $
+      for jj=0L, nlambda-1 do normtmp[jj] = mean( $
       normtmp[ (spcwin.min[jj]+1)>0 : spcwin.max[jj]<(nlambda-1),0] )
 ;   trat *= REFORM(1./normtmp - 1.)
-
+   
    ; or fit
    normfitcoef = POLY_FIT(lambda[lmin:lmax], normtmp[lmin:lmax], 5, YFIT = normfit) ; GvH hig;her order
+   
    normfit = poly(lambda, normfitcoef)                                              ; GvH hig;her order
    if t lt 999 then trat *= REFORM(1./normfit - 1.) else trat *= REFORM(1./normtmp - 1.)
 
    for jj=0L, nlambda-1 do trat[jj] = mean( $
       trat[ (spcwin.min[jj]+1)>0 : spcwin.max[jj]<(nlambda-1),0] )
-
+   print,mean(Iest),mean(spectras[*,0])
 if doplot ne 0 then begin
    ;cgplot, lambda, trat, /overplot, thick=t
 ;   cgplot, lambda, spcnorm[*,0], /xs, yrange=[0,1], title='t='+strtrim(t,2)
@@ -453,7 +457,7 @@ if doplot ne 0 then begin
    cgplot, lambda, spectras[*,0], /xs, /ys
    cgplot, lambda, spectras[*,1], /overplot, color='red'
    cgplot, lambda, Iest/2d, /overplot, color='purple'
-   wait, 0.5
+   wait, 1.0
 endif
 endfor
 !p.multi = pmulti
@@ -461,6 +465,7 @@ endfor
 
 
 if (N_ELEMENTS(trat) eq 0) then begin
+print,'HERE'
 ; Definition of fit-parameters
 nlamb = 10
 fitpar1 = REPLICATE({fixed:0, limited:[0,0], limits:[0.D,0.D]},nlamb)
@@ -767,9 +772,15 @@ if ~(quiet) then PRINT, MEAN(deltalit), FORMAT = '("Mean retardance = ",I7)'
 ; Calculate spectral window lengths and positions
 spcwin = DEMOD_SPC_WIN(lambda, deltalit)
 
+
+;plot,spectra[*,1,0]+spectra[*,0,0]
+;oplot,spectra[*,1,1]+spectra[*,0,1]
+;oplot,spectra[*,1,2]+spectra[*,0,2]
+
+
 if (nodeltafit) then delta = deltalit else begin
   ; Calculate normalized spectrum of calibration spectrum
-  spcnorm = DEMOD_SPC_NORM(spcwin, lambda, REFORM(spectra[*,*,0]), DOPLOT = doplot)
+  spcnorm = DEMOD_SPC_NORM(spcwin, lambda, REFORM(spectra[*,*,0]), DOPLOT = 1)
   ; Calculate number of point to be used in the interpolation in the full spectrum fit
   if (N_ELEMENTS(nlamb) eq 0) then $ 
     nlamb = (ABS(CEIL(0.6*MEAN(deltalit)*(1./lambda[0]-1./lambda[N_ELEMENTS(lambda)-1]))) < 40) > 4

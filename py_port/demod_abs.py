@@ -1,5 +1,10 @@
 import numpy as np
-from classobjects import crystal,spectralwindow
+
+from classobjects import crystal,spectralwindow,fitparameters
+
+import mpfit
+
+import matplotlib.pyplot as plt
 
 
 def opticsdata(lambdainp):
@@ -236,9 +241,9 @@ def demod_get_delta(MORinput,lambdainp,optics,N=np.zeros((1))):
   
         #Add retardance of each component        
         delta += delta1
-        
   
     return (delta*lambdainp)*(1.-np.zeros(nlambda)/(nlambda-1.))
+
 
                 
 def demod_spc_win(lambdainp,delta,GvHmethod=True):
@@ -267,6 +272,176 @@ def demod_spc_win(lambdainp,delta,GvHmethod=True):
         window.length = window.maximum - window.minimum + 1
         
     return window
+
+
+def demod_spc_norm(spcwindow,lambdainp,spectra,trat=None,doplot=True):
+    nlambda = np.size(lambdainp)
+    lmin=np.min(np.argwhere(lambdainp >= (lambdainp[0]+10.) ))
+    lmax=np.min(np.argwhere(lambdainp >= (lambdainp[-1]-20.) ))
+    nspectra = spectra.shape[1] #the two channels from each measurement
+    spcnorm = np.zeros((2,nlambda))
+    
+    #nonessential, to be ported:
+    """
+        ; Calculate second spectrum in case of single beam data
+    if (nspectra eq 1) then begin
+           Itmp = FLTARR(nlambda)
+           Iest = FLTARR(nlambda)
+    ;       for jj=0L, nlambda-1 do Itmp[jj] = 2.*MEAN(spectra[spcwin.min[jj]:spcwin.max[jj]])
+           for jj=0L, nlambda-1 do Itmp[jj] = $
+              max(spectra[spcwin.min[jj]:spcwin.max[jj]]) + $
+              min(spectra[spcwin.min[jj]:spcwin.max[jj]])
+
+           Iest = SMOOTH(REFORM(Itmp), MAX(spcwin.length)/2, EDGE_TRUNCATE = 1) > 0.001
+           ;Iest = Itmp
+           spectra = [ [spectra] , [Iest - REFORM(spectra[*,0]) ] ]
+    endif
+    """
+    #Calculate intensity spectrum
+    Iest = spectra[0,:] + spectra[1,:]
+    #Calculate normalized spectra
+    spcnorm = spectra / Iest
+    
+    #Calculate transmission ratio
+    normtmp = np.zeros(nlambda)
+
+    #++++++++++++++++++++++++++++++++++++++++++
+    #GvH ITERATE TRANSMISSION RATIO CORRECTION
+    trat = np.ones(nlambda)
+    for t in range(21):
+        print(t)
+        spectras=np.copy(spectra)
+        #Correct spectra (multiply the first channel by the trat)
+        spectras[0,:]=trat*spectras[0,:]
+        #Recalculate intensity spectrum
+        Iest = spectras[0,:] + spectras[1,:]
+        #Recalculate normalized spectra
+        spcnorm = spectras / Iest
+        #Calculate transmission ratio
+            #as soon as t is not too extreme anymore, it's better to use the modulation mean
+            #especially at higher DoLP, the (max-min)/2 method breaks down
+            #(see Mathematica nb). in the first few iterations we use (max-min)/2,
+            #then the mean.
+        if t<=999:
+                #average is not the center of the modulation, because modulation is not
+                #perfect cosine; it is 'spiky', so the center of mass is below the center
+                #of modulation! Now let's calculate the center using (max+min)/2:
+                #warning: use with caution: it will wash out contrast in O2A band!!!
+            for jj in range(nlambda):
+                lo=int(np.clip(spcwindow.minimum[jj]+1.,a_min=0.0,a_max=None))
+                hi=int(1+np.clip(spcwindow.maximum[jj],a_min=None,a_max=(nlambda-1)))
+                normtmp[jj] = (np.max(spcnorm[0,lo:hi]) + np.min(spcnorm[0,lo:hi]))/2.
+        else:
+             for jj in range(nlambda):
+                 lo=int(np.clip(spcwindow.minimum[jj]+1.,a_min=0.0,a_max=None))
+                 hi=int(1+np.clip(spcwindow.maximum[jj],a_min=None,a_max=(nlambda-1)))
+                 normtmp[jj] = np.mean( spcnorm[0,lo:hi] )
+        #spectral smooth
+        for jj in range(nlambda):
+            lo=int(np.clip(spcwindow.minimum[jj]+1.,a_min=0.0,a_max=None))
+            hi=int(1+np.clip(spcwindow.maximum[jj],a_min=None,a_max=(nlambda-1)))
+            normtmp[jj] = np.mean( normtmp[lo:hi] )
+
+        #or fit
+        normfitcoef= np.polyfit(x=lambdainp[lmin:1+lmax], y=normtmp[lmin:1+lmax],deg=5) #GvH higher order
+        normfit = np.polyval(normfitcoef,lambdainp)
+
+        if t<999:
+            trat *= (1./normfit - 1.)
+        else:
+            trat *= (1./normtmp - 1.)
+            
+        for jj in range(nlambda):
+            lo=int(np.clip(spcwindow.minimum[jj]+1.,a_min=0.0,a_max=None))
+            hi=int(1+np.clip(spcwindow.maximum[jj],a_min=None,a_max=(nlambda-1)))
+            trat[jj] = np.mean(trat[lo:hi])
+        """    
+        if doplot:
+            plt.clf()
+            plt.ion()
+            plt.show()
+            plt.subplot(211)
+            plt.title('t='+str(t))
+            #plt.plot(lambdainp, trat,label='trat')
+            plt.plot(lambdainp, spcnorm[0,:],'k')
+            plt.plot(lambdainp, spcnorm[1,:], 'r')
+            #plt.plot(lambdainp, 0.5*np.ones(nlambda))
+            plt.plot(lambdainp, normfit, 'g',label='normfit')
+            plt.plot(lambdainp, normtmp,'y',label='normtmp')
+            plt.ylim((0,1))
+            plt.legend()
+            plt.subplot(212)
+            plt.plot(lambdainp, spectras[0,:],'k',label='channel1')
+            plt.plot(lambdainp, spectras[1,:],'r',label='channel2')
+            plt.plot(lambdainp, Iest,'m',label='Iest')
+            plt.ylim((0,66000))
+            plt.legend()
+            plt.pause(0.01)
+        """
+    #++++++++++++++++++++++++++++++++++++++++++
+    
+    if trat is None:
+        #Definition of fit-parameters
+        nlamb = 10
+        fitpar1=[]
+        for n in range(nlamb-1):
+            fitpar1.append(fitparameters(limited=[1.,1.],limits=[0.5,1.5]))
+
+        for n in fitpar1:
+            print(n.limits)
+        #nonessential, to be ported:
+        """
+        ; Initialize fit
+        nlambd = nlamb + 2
+        fitwav = lambda[[0,FINDGEN(nlamb-2)*0.98*nlambda/(nlamb-3)+0.01*nlambda, nlambda-1]]
+        fittrat = trat[[0,FINDGEN(nlamb-2)*0.98*nlambda/(nlamb-3)+0.01*nlambda, nlambda-1]]
+        functargs1 = {XDATA:lambda, YDATA:spectra, FITWAV:fitwav}
+
+        ; Full trat curvefit
+        fitparout = MPFIT('DEMOD_FUNC0', fittrat, functargs=functargs1, parinfo=fitpar1 $
+                      , BESTNORM = bestnorm, NITER = niter, STATUS = status, ERRMSG = errmsg, /QUIET)
+        if (status gt 0) then PRINT, niter, bestnorm, FORMAT='("Fit successful with ",I3," iterations and chi-sqr = ",F8.5)' $
+          else PRINT, errmsg
+
+        trat = INTERPOL(fitparout[0*nlamb:1*nlamb-1], fitwav, lambda, /SPLINE)
+        endif
+
+        ;trat /= 0.95 ; little experiment o2a paper... GvH
+        ;trat /= trat ; little experiment o2a paper... GvH
+        ; Correct spectra
+        spectras = [ [trat*REFORM(spectra[*,0])] , [REFORM(spectra[*,1])] ]
+
+        ; Recalculate intensity spectrum
+        Iest = spectras[*,0] + spectras[*,1]
+
+        ; Recalculate normalized spectra
+        spcnorm = spectras / [ [Iest] , [Iest] ]
+        """
+    if doplot:
+        plt.subplot(311)
+        plt.plot(lambdainp, spcnorm[0,:] + spcnorm[1,:])
+        plt.plot(lambdainp, spcnorm[0,:],'r:')
+        plt.plot(lambdainp, spcnorm[1,:],'b:')
+        plt.xlabel('Wavelength (nm)')
+        plt.ylabel('Normalized spectra')
+        plt.subplot(312)
+        plt.plot(lambdainp, normtmp)
+        plt.plot(lambdainp,normfit)
+        plt.xlabel('Wavelength (nm)')
+        plt.ylabel('Window average')
+        plt.ylim((0,1))
+        plt.subplot(313)
+        plt.plot(lambdainp, trat)
+        plt.ylabel('Transmission ratio') 
+        plt.show()
+
+    return spcnorm
+
+
+
+
+
+
 
 
 def demod(MORinput,lambdainp, spectra, fitout, conf=[1,0,0], \
@@ -315,11 +490,11 @@ def demod(MORinput,lambdainp, spectra, fitout, conf=[1,0,0], \
         delta=deltalit
     else:
         #Calculate normalized spectrum of calibration spectrum
-        spcnorm=demod_spc_norm(spcwin,Lambda,spectra)
+        calibspectra=spectra[0,:,:]
+        spcnorm=demod_spc_norm(spcwin,Lambda,calibspectra)
         #Calculate number of point to be used in the interpolation in the full spectrum fit
         if not nlamb:
             nlamb=np.clip( np.abs(np.ceil( 0.6*np.mean(deltalit)*(1./Lambda[0]-1./Lambda[np.size(Lambda)-1]))), a_min=4,a_max=40)
-        print(nlamb)
         #Perform full spectrum fit in order to obtain best fit of the spectral retardance
         #delta=demod_delta()
         #Recalculate spectral window lengths and positions

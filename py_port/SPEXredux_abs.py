@@ -272,10 +272,11 @@ fitoutwrap = np.vstack( [ fitoutpol[1:19,:,:], \
 polspec=readsav('/home/seymour/Documents/SPEX/demodulation_pipeline/polspec.sav')
 polspec=polspec.polspec
 
+#define input MOR crystals and their parameters
 inp=MOR(composition=['mgf2','sio2'],thickness=[3.82,-1.63])
 
 wavsDM=wavs[:,1]
-specDM=np.vstack([polspec[np.newaxis,:],spec])
+specDM=np.vstack([polspec[np.newaxis,:],spec]) #HAS SHAPE [exp,channels,pixels]
 
 from demod_abs import *
 
