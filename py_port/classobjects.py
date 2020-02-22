@@ -1,7 +1,7 @@
 import numpy as np
 
 
-#setting up parameters of the multiple order retarder, with various crystals (see demod_abs.py)
+#setting up parameters of the multiple order retarder, with various crystals (see SPEXredux)
 class MOR:
 
     def __init__(self,composition=None,thickness=None,par=None,rot=None,temp=None ):
@@ -32,7 +32,7 @@ class MOR:
             self.temp=temp
 
 
-#object for constructing a crystal as part of the MOR in the SPEX optics (see SPEXredux and demod.optics)
+#object for constructing a crystal as part of the MOR in the SPEX optics (see SPEXredux and demod.opticsdata)
 class crystal:
         #name=np.asarray([ 'al2o3'],dtype=str)
         #refrindex=np.full((nlambda,2),0.0,dtype=complex)
@@ -69,7 +69,7 @@ class crystal:
 class spectralwindow:
         def __init__(self,Nwavs=None):
             if Nwavs is None:
-                print("Length of wavelength array not specified.")
+                #print("Length of wavelength array not specified.")
                 self.minimum=np.zeros(1)
                 self.maximum=np.zeros(1)
                 self.length=np.zeros(1)

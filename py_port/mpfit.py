@@ -601,7 +601,6 @@ class mpfit:
 	blas_enorm32, = scipy.linalg.blas.get_blas_funcs(['nrm2'],numpy.array([0],dtype=numpy.float32))
 	blas_enorm64, = scipy.linalg.blas.get_blas_funcs(['nrm2'],numpy.array([0],dtype=numpy.float64))
 
-
 	def __init__(self, fcn, xall=None, functkw={}, parinfo=None,
 				 ftol=1.e-10, xtol=1.e-10, gtol=1.e-10,
 				 damp=0., maxiter=200, factor=100., nprint=1,
@@ -614,8 +613,7 @@ class mpfit:
 	   The function to be minimized.  The function should return the weighted
 	   deviations between the model and the data, as described above.
 
-	xall:
-	   An array of starting values for each of the parameters of the model.
+	xall:	   An array of starting values for each of the parameters of the model.
 	   The number of parameters should be fewer than the number of measurements.
 
 	   This parameter is optional if the parinfo keyword is used (but see
@@ -767,7 +765,7 @@ class mpfit:
 		   user's model function, which must be avoided.
 
 		-15 to -1
-		   These are error codes that either MYFUNCT or iterfunct may return to
+		   These ae error codes that either MYFUNCT or iterfunct may return to
 		   terminate the fitting process.  Values from -15 to -1 are reserved
 		   for the user functions and will not clash with MPFIT.
 
@@ -874,11 +872,11 @@ class mpfit:
 
 		# Be sure that PARINFO is of the right type
 		if parinfo is not None:
-			if type(parinfo) != types.ListType:
+			if type(parinfo) != type([]):
 				self.errmsg = 'ERROR: PARINFO must be a list of dictionaries.'
 				return
 			else:
-				if type(parinfo[0]) != types.DictionaryType:
+				if type(parinfo[0]) != type({}):
 					self.errmsg = 'ERROR: PARINFO must be a list of dictionaries.'
 					return
 			if ((xall is not None) and (len(xall) != len(parinfo))):
@@ -1421,11 +1419,11 @@ class mpfit:
 		nprint = len(x)
 		print("Iter ", ('%6i' % iter),"   CHI-SQUARE = ",('%.10g' % fnorm)," DOF = ", ('%i' % dof))
 		for i in range(nprint):
-			if (parinfo is not None) and (parinfo[i].has_key('parname')):
+			if (parinfo is not None) and ('parname' in parinfo[i]):
 				p = '   ' + parinfo[i]['parname'] + ' = '
 			else:
 				p = '   P' + str(i) + ' = '
-			if (parinfo is not None) and (parinfo[i].has_key('mpprint')):
+			if (parinfo is not None) and ('mpprint' in parinfo[i]):
 				iprint = parinfo[i]['mpprint']
 			else:
 				iprint = 1
@@ -1462,18 +1460,18 @@ class mpfit:
 			return values
 		values = []
 		for i in range(n):
-			if (parinfo is not None) and (parinfo[i].has_key(key)):
+			if (parinfo is not None) and (key in parinfo[i]):
 				values.append(parinfo[i][key])
 			else:
 				values.append(default)
 
 		# Convert to numeric arrays if possible
 		test = default
-		if type(default) == types.ListType:
+		if type(default) == type([]):
 			test=default[0]
-		if isinstance(test, types.IntType):
+		if isinstance(test, type(1)):
 			values = numpy.asarray(values, int)
-		elif isinstance(test, types.FloatType):
+		elif isinstance(test, type(1.)):
 			values = numpy.asarray(values, float)
 		return values
 	
@@ -1905,7 +1903,7 @@ class mpfit:
 
 		for j in range(n):
 			r[j:n,j] = r[j,j:n]
-		x = numpy.diagonal(r)
+		x = numpy.diagonal(r).copy() #ABS: .copy() to prevent crashing on readable only
 		wa = qtb.copy()
 
 		# Eliminate the diagonal matrix d using a givens rotation
@@ -2265,7 +2263,7 @@ class mpfit:
 
 		if self.debug:
 			print('Entering calc_covar...')
-		if numpy.rank(rr) != 2:
+		if numpy.ndim(rr) != 2:
 			print('ERROR: r must be a two-dimensional matrix')
 			return -1
 		s = rr.shape

@@ -230,7 +230,7 @@ for e in range(len(texp)):#divide spectral channel 1 by transmission function to
 #plt.plot(spec[1,1,:],'r')
 #plt.show()
 
-#settings from GvH
+
 #T2=spec[*,1,33]/spec[*,0,33]
 #dir='Cabauw2013/08072013/ScriptRun_08072013 151130'
 

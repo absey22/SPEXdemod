@@ -1,6 +1,8 @@
 PRO SPEXredux
 
-dir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013 105035'
+dir='/home/seymour/Documents/SPEX/gSPEXshare/ScriptRun_21022020 172335_polcal_0_25_50_75_100_125_150_175'
+
+;dir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_09072013 105035'
 ;dir='/home/seymour/Documents/SPEX/demodulation_pipeline/SPEXredux/ScriptRun_08072013 173310/'
 if strmid(dir,0,/reverse_offset) ne path_sep() then dir += path_sep()
 
@@ -59,7 +61,7 @@ print, dir
 
 
 ;;================ IMPORT META DATA
-meta = file_search(dir+'Meta*.*')
+meta = file_search(dir+'Meta*EDITED.txt')
 temp = 0.
 pantilt = make_array(2,9999,/float)
 temperature = make_array(2,9999,/float)
@@ -214,7 +216,17 @@ for sl=0, n_elements(texp)-1 do $
 ;;================ "FLAT FIELDING" / DIFFERENTIAL TRANSMISSION CORRECTION
 if (size(findfile('transmission.sav')))[0] ne 0 then $
    restore, 'transmission.sav' else print, '*** error: transmission.sav file not found ***'
+
+
+;cgPlot,spec[*,0,0],Position=[0.1, 0.55, 0.9, 0.9],/NoErase
+;cgPlot,spec[*,1,0],Position=[0.1, 0.55, 0.9, 0.9],color='red',/overplot,/NoErase
+
 for sl=0, n_elements(texp)-1 do spec[*,1,sl] /= T2
+
+;cgPlot,spec[*,0,0],Position=[0.1, 0.1, 0.9, 0.45],/NoErase
+;cgPlot,spec[*,1,0],Position=[0.1, 0.1, 0.9, 0.45],color='red',/overplot,/NoErase
+
+
 ; T2=spec[*,1,33]/spec[*,0,33]
 ; dir='Cabauw2013/08072013/ScriptRun_08072013 151130'
 
@@ -262,11 +274,15 @@ fitoutwrap = transpose( $
 if (size(findfile('polspec.sav')))[0] ne 0 then $
    restore, 'polspec.sav' else print, '*** error: polspec.sav file not found ***'
 inp = {comp:['mgf2','sio2'], thick:[3.82,-1.63]}
+
 wavsDM = reform(wavs[1,*])
 specDM = transpose([ reform(transpose(polspec),1,2,3648), transpose(spec) ])
 
 demod, inp, wavsDM, specDM, fitout, $
-       doplot=0, aolp=90*!dtor, lrange=[370., 865.];, /quiet
+       doplot=0, aolp=90*!dtor, lrange=[370., 865.], dosave=1 ;, /quiet
+
+print,size(fitout)
+
 
 stop
 END

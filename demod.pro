@@ -14,7 +14,7 @@
 ;   ALGORITHM
 ;
 ; CALLING SEQUENCE:
-;   DEMOD, Input, Lambdainp, Spectra 
+;   DEMOD, Input, Lambdainp Spectra 
 ;
 ; INPUTS:
 ;   Input:      structure describing the multiple-order retarder
@@ -269,7 +269,7 @@ delta = FLTARR(nlambda)
 
 ; Loop over optical components
 for jj = 0, ncomp-1 do begin
-  print,comp[jj]
+  ;print,comp[jj]
   ; Calculate refractive index
   params1 = Nset ? 0 : optics[WHERE(optics.name eq comp[jj])].N
   params2 = Nset ? 0 : optics[WHERE(optics.name eq comp[jj])].dNdT
@@ -286,7 +286,7 @@ for jj = 0, ncomp-1 do begin
   ;print,d1
   ; Calculate retardance including field-of-view behavior and thermal expansion
   phi = par[jj,0]
-  print,par[jj,1] ,rot[jj]
+  ;print,par[jj,1] ,rot[jj]
   theta = (biref1[0] gt 0) ? par[jj,1] + rot[jj]: par[jj,1] + !pi/2. + rot[jj]
   
   c1 = SIN(phi)*SIN(theta)
@@ -377,7 +377,7 @@ endif
 
 ; Calculate intensity spectrum
 Iest = spectra[*,0] + spectra[*,1]
-print,'before',MEAN(Iest)
+
 ; Calculate normalized spectra
 spcnorm = spectra / [ [Iest] , [Iest] ]
 
@@ -403,7 +403,7 @@ pmulti = !p.multi
 if doplot ne 0 then window, 10, xsize=600, ysize=900
 ;cgplot, lambda, trat, /xs,yrange=[0.9,1.1]
 for t=0, 20 do begin
-   print,t
+   
    ; Correct spectra
    spectras = [ [trat*REFORM(spectra[*,0])] , [REFORM(spectra[*,1])] ]
    ; Recalculate intensity spectrum
@@ -443,7 +443,7 @@ for t=0, 20 do begin
 
    for jj=0L, nlambda-1 do trat[jj] = mean( $
       trat[ (spcwin.min[jj]+1)>0 : spcwin.max[jj]<(nlambda-1),0] )
-   print,mean(Iest),mean(spectras[*,0])
+   
 if doplot ne 0 then begin
    ;cgplot, lambda, trat, /overplot, thick=t
 ;   cgplot, lambda, spcnorm[*,0], /xs, yrange=[0,1], title='t='+strtrim(t,2)
@@ -465,7 +465,7 @@ endfor
 
 
 if (N_ELEMENTS(trat) eq 0) then begin
-print,'HERE'
+
 ; Definition of fit-parameters
 nlamb = 10
 fitpar1 = REPLICATE({fixed:0, limited:[0,0], limits:[0.D,0.D]},nlamb)
@@ -562,6 +562,9 @@ fitpar1[2*nlamb:3*nlamb-1].limited = [1, 1]
 ;fitpar1[2*nlamb:3*nlamb-1].limits  = [0.98, 1.02] ; GvH
 fitpar1[2*nlamb:3*nlamb-1].limits  = [0.995, 1.005]
 
+
+
+
 ; Initialize fit
 nlambd = nlamb + 2
 fitwav = lambda[[0,FINDGEN(nlamb-2)*0.98*nlambda/(nlamb-3)+0.01*nlambda, nlambda-1]]
@@ -569,7 +572,10 @@ fitstartdelta = 1
 functargs1 = {XDATA:lambda, YDATA:spectra, FITWAV:fitwav, DELTA:delta, CONF:conf, LRANGE:[lmin,lmax]}
 fitstart = [ FLTARR(nlamb) + 0.5, FLTARR(nlamb) + 0.8, FLTARR(nlamb) + fitstartdelta, FLTARR(nlamb) + aolp]
 
+
+
 ; Full spectrum curvefit
+
 fitparout = MPFIT('DEMOD_FUNC1', fitstart, functargs=functargs1, parinfo=fitpar1 $
               , BESTNORM = bestnorm, NITER = niter, STATUS = status, ERRMSG = errmsg, /QUIET)
 if (status gt 0) then PRINT, niter, bestnorm, FORMAT='("Fit successful with ",I3," iterations and chi-sqr = ",F8.5)' $
@@ -586,6 +592,8 @@ fitout[*,1] = INTERPOL(fitparout[1*nlamb:2*nlamb-1], fitwav, lambda, /SPLINE)
 fitout[*,2] = INTERPOL(fitparout[2*nlamb:3*nlamb-1], fitwav, lambda, /SPLINE)
 ;fitout[*,2] = INTERPOL((fitparout[2*nlamb:3*nlamb-1])[ind], fitwav[ind], lambda) ; GvH
 fitout[*,3] = FLTARR(nlambda) + fitparout[3*nlamb]
+
+
 fitres = fitout[*,0] + (-1)^conf[2]*fitout[*,1]/2. * COS(2.*!pi*delta*fitout[*,2]/lambda $
          - (-1)^(conf[0]+conf[1])*2.*fitout[*,3])
 
@@ -780,7 +788,7 @@ spcwin = DEMOD_SPC_WIN(lambda, deltalit)
 
 if (nodeltafit) then delta = deltalit else begin
   ; Calculate normalized spectrum of calibration spectrum
-  spcnorm = DEMOD_SPC_NORM(spcwin, lambda, REFORM(spectra[*,*,0]), DOPLOT = 1)
+  spcnorm = DEMOD_SPC_NORM(spcwin, lambda, REFORM(spectra[*,*,0]), DOPLOT = doplot)
   ; Calculate number of point to be used in the interpolation in the full spectrum fit
   if (N_ELEMENTS(nlamb) eq 0) then $ 
     nlamb = (ABS(CEIL(0.6*MEAN(deltalit)*(1./lambda[0]-1./lambda[N_ELEMENTS(lambda)-1]))) < 40) > 4
@@ -789,10 +797,6 @@ if (nodeltafit) then delta = deltalit else begin
   ; Recalculate spectral window lengths and positions
   spcwin = DEMOD_SPC_WIN(lambda, delta)
 endelse
-stop
-END
-
-
 
 
 ; Calculate positions at which to perform spectral window fitting
@@ -812,49 +816,57 @@ endif else begin
 endelse
 nindx = N_ELEMENTS(indx)
 
+
+
+
 fitout = (nspect eq 1) ? FLTARR(nindx, 8) : FLTARR(nindx, 8, szspectra[2])
+
 for jj=0, nspect-1 do begin
+   
   spcnorm = DEMOD_SPC_NORM(spcwin, lambda, REFORM(spectra[*,*,jj]), DOPLOT = doplot, TRAT = trat)
   PRINT, jj+1, nspect, FORMAT='("Performing spectral window fitting ",I4,"/",I4)'
   fitout[*,0:4,jj] = DEMOD_SPCWINFIT(delta, spcwinfit, lambda, spcnorm $
-                                 , CONF = conf, DOPLOT = doplot, AOLP = aolp, QUIET = quiet)
+                                 , CONF = conf, DOPLOT = doplot, AOLP = aolp, QUIET = 1)
   fitout[*,5,jj] = lambda[indx]
   fitout[*,6,jj] = trat[indx,0]
   fitout[*,7,jj] = delta[indx,0]
+
+
+
 ; Plot if DOPLOT = 1
 
-;; if doplot ne 0 then begin
-;;   WSET, 0
-;;   !P.MULTI = [3,3,3]
-;;   PLOT, lambda[indx], fitout[*,0,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'Offset / DoLP', YRANGE = [0,1]
-;;   OPLOT, lambda[indx], fitout[*,1,jj], COLOR = 'ff6666'x
-;; ;  for jj=0, nspect-1 do begin
-;; ;     oplot, lambda[indx], fitout[*,0,jj]
-;; ;     oplot, lambda[indx], fitout[*,1,jj], color = 'ff6666'x
-;; ;  endfor
-;;   PLOT, lambda[indx], fitout[*,2,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'Linear term DoLP', /YSTYLE
-;; ;  for jj=0, nspect-1 do begin
-;; ;     oplot, lambda[indx], fitout[*,2,jj]
-;; ;  endfor
-;;   PLOT, lambda[indx], fitout[*,3,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'AoLP'
-;; ;  for jj=0, nspect-1 do begin
-;; ;     oplot, lambda[indx], fitout[*,3,jj]
-;; ;  endfor
-;;   WAIT, 0.001
-;; endif
+ if doplot ne 0 then begin
+   WSET, 0
+   !P.MULTI = [3,3,3]
+   PLOT, lambda[indx], fitout[*,0,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'Offset / DoLP', YRANGE = [0,1]
+   OPLOT, lambda[indx], fitout[*,1,jj], COLOR = 'ff6666'x
+ ;  for jj=0, nspect-1 do begin
+ ;     oplot, lambda[indx], fitout[*,0,jj]
+ ;     oplot, lambda[indx], fitout[*,1,jj], color = 'ff6666'x
+ ;  endfor
+   PLOT, lambda[indx], fitout[*,2,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'Linear term DoLP', /YSTYLE
+ ;  for jj=0, nspect-1 do begin
+ ;     oplot, lambda[indx], fitout[*,2,jj]
+ ;  endfor
+   PLOT, lambda[indx], fitout[*,3,jj], /XSTYLE, XTITLE = 'Wavelength (nm)', YTITLE = 'AoLP'
+ ;  for jj=0, nspect-1 do begin
+ ;     oplot, lambda[indx], fitout[*,3,jj]
+ ;  endfor
+   WAIT, 0.001
+ endif
   
 endfor
-;fitout = fitout[lminout:lmaxout,*,*]
+fitout = fitout[lminout:lmaxout,*,*]
 
-;; if doplot ne 0 then begin
-;;   ; Restore graphics system variables
-;;   !P = sysvar.p
-;;   !X = sysvar.x
-;;   !Y = sysvar.y
-;;   !Z = sysvar.z
-;;   SET_PLOT, sysvar.dev
-;;   WSET, sysvar.w
-;; endif
+ if doplot ne 0 then begin
+   ; Restore graphics system variables
+   !P = sysvar.p
+   !X = sysvar.x
+   !Y = sysvar.y
+   !Z = sysvar.z
+   SET_PLOT, sysvar.dev
+   WSET, sysvar.w
+ endif
 
 ; Save output if DOSAVE = 1
 ; [lambda, indx, spectrum]

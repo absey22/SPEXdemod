@@ -717,7 +717,7 @@ def demod(MORinput,lambdainp, spectra, fitout, conf=[1.,0.,0.], \
         fitout[jj,6,:] = trat[indx,0]
         fitout[jj,7,:] = delta[indx,0]
     
-    return None
+    return fitout
 
 
 
